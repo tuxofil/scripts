@@ -1,0 +1,14 @@
+#!/bin/sh -x
+
+set -e
+
+for i in *.flac; do
+    ffmpeg -i "$i" "$i.wav" 2>/dev/null
+    done
+
+for i in *.wav; do
+    lame --preset standard --quiet "$i" "$i.mp3"
+    done
+
+rm -f *.flac
+rm -f *.wav

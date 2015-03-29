@@ -1,0 +1,39 @@
+#!/bin/bash
+
+date
+#set -e
+WDIR="/tmp/$(basename $0)-$$"
+rm -rf "$WDIR"
+mkdir -p "$WDIR"
+
+if [ -z "$2" ]; then
+    CUE=`echo "$1" | sed -r 's/\.[^.]+$/.cue/'`
+    if [ ! -f "$CUE" ]; then
+        CUE=`echo "$1" | sed -r 's/\.[^.]+$/.CUE/'`
+    fi
+else
+    CUE="$2"
+fi
+[ -f "$1" -a -f "$CUE" ]
+
+cp -v "$CUE" "$WDIR/cue.cue"
+ffmpeg -i "$1" "$WDIR/wav.wav" 2>/dev/null
+( set -e
+  cd "$WDIR"
+  cuebreakpoints cue.cue > table
+  shnsplit -f table wav.wav
+)
+rm -f "$WDIR/wav.wav"
+echo -n "Encoding to mp3: "
+for i in "$WDIR"/*.wav; do
+    (
+    lame --preset standard --quiet "$i" "$i.mp3"
+    echo -n "*"
+    ) &
+    done
+wait
+echo ""
+cuetag "$CUE" "$WDIR"/*.mp3
+cp -v "$WDIR"/*.mp3 "$(dirname "$1")"
+rm -rf "$WDIR"
+date

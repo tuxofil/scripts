@@ -1,0 +1,12 @@
+#!/bin/sh
+
+MENCODER=`whereis -b mencoder | awk '{print $2}'`
+[ -x "$MENCODER" ] || { echo "ERROR: There is no mencoder installed"; exit 1; }
+
+[ -z "$1" -o ! -f "$1" ] &&
+    {
+    echo "Usage: $0 <video_filename>"
+    exit 2
+    }
+
+"$MENCODER" "$1" -o "$1.compressed" -ovc lavc -oac pcm
