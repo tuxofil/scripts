@@ -8,7 +8,14 @@
 ## and on the other hand avconv input and output formats are in
 ## depend of input file and output file extensions, I've to
 ## use symlinks and temporary files.
-## All avconv output was redirected to /tmp/stab.log.
+## Tested on Debian Jessie with avconv from deb-multimedia repository.
+##
+## TODO: use transcode when available because avconv was excluded
+## from Ubuntu and libav-tools-links package provides only symlinks
+## to the ffmpeg tool. Simulated avconv interface cannot stabilize
+## video.
+##
+## All progress information is redirected to /tmp/stab.log.
 ##
 
 if [ $# -gt 1 ]; then
@@ -27,15 +34,33 @@ ABS_NAME=`readlink -f "$1"`
 ln -sf -- "$ABS_NAME" /tmp/video."$EXT"
 > /tmp/stab.log
 echo -n "   `datetime` Calculating transformations..."
-avconv -i /tmp/video."$EXT" \
-    -filter:v vidstabdetect=result=/tmp/trf:shakiness=10 \
-    -f null /dev/null >> /tmp/stab.log 2>&1 || \
-    { echo "FAILED. See /tmp/stab.log for details"; exit 1; }
-echo -n "DONE\n   `datetime` Rendering..."
-avconv -i /tmp/video."$EXT" \
-    -filter:v vidstabtransform=input=/tmp/trf -y \
-    /tmp/stab."$EXT" >> /tmp/stab.log 2>&1 || \
-    { echo "FAILED. See /tmp/stab.log for details"; exit 1; }
+if [ -x /usr/bin/transcode2 ]; then
+    # Ubuntu
+    transcode -J stabilize=shakiness=8 \
+        -i /tmp/video."$EXT" \
+        -y null,null \
+        -o dummy >> /tmp/stab.log 2>&1 || \
+        { echo "FAILED. See /tmp/stab.log for details"; exit 1; }
+    echo -n "DONE\n   `datetime` Rendering..."
+    transcode -J transform -i /tmp/video."$EXT" \
+        -y xvid \
+        -o /tmp/stab."$EXT" || \
+        { echo "FAILED. See /tmp/stab.log for details"; exit 1; }
+elif [ -x /usr/bin/avconv ]; then
+    # Debian. avconv from the deb-multimedia project
+    avconv -i /tmp/video."$EXT" \
+        -filter:v vidstabdetect=result=/tmp/trf:shakiness=10 \
+        -f null /dev/null >> /tmp/stab.log 2>&1 || \
+        { echo "FAILED. See /tmp/stab.log for details"; exit 1; }
+    echo -n "DONE\n   `datetime` Rendering..."
+    avconv -i /tmp/video."$EXT" \
+        -filter:v vidstabtransform=input=/tmp/trf -y \
+        /tmp/stab."$EXT" >> /tmp/stab.log 2>&1 || \
+        { echo "FAILED. See /tmp/stab.log for details"; exit 1; }
+else
+    echo "FAILED. No converter found."
+    exit 1
+fi
 echo "DONE\n   `datetime` Moving temporary file..."
 mv -f -- /tmp/stab."$EXT" \
    "`dirname "$1"`"/"`basename "$1" ."$EXT"`"_stabilized."$EXT"
