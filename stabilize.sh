@@ -23,7 +23,8 @@ fi
 datetime(){ date '+%Y-%m-%d %H:%M:%S'; }
 echo "Stabilizing $1:"
 EXT=`basename "$1" | rev | cut -d. -f1 -s | rev`
-ln -sf -- "`readlink -f $1`" /tmp/video."$EXT"
+ABS_NAME=`readlink -f "$1"`
+ln -sf -- "$ABS_NAME" /tmp/video."$EXT"
 > /tmp/stab.log
 echo -n "   `datetime` Calculating transformations..."
 avconv -i /tmp/video."$EXT" \
